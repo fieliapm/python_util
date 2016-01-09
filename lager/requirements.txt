@@ -1,0 +1,5 @@
+gcloud>=0.7.0
+six
+boto>=2.38.0
+rsa
+gcs-oauth2-boto-plugin>=1.9
