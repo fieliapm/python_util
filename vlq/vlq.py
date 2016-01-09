@@ -62,6 +62,7 @@ def vlq_to_int(vlq_bytes_iter):
         number = (number<<7)|(i&0x7f)
         if not i>>7:
             return number
+    return None
 
 
 # test case
@@ -94,6 +95,10 @@ class VLQTestCase(unittest.TestCase):
         for (n, vlq_bytes) in TEST_CASE:
             self.assertEqual(n, vlq_to_int(vlq_bytes), 'vlq_to_int(%s) failed' % (repr(vlq_bytes),))
             self.assertEqual(vlq_bytes, int_to_vlq(n), 'int_to_vlq(0x%x) failed' % (n,))
+
+    def test_behavior(self):
+        vlq_bytes = b''
+        self.assertEqual(None, vlq_to_int(vlq_bytes), 'vlq_to_int(%s) failed' % (repr(vlq_bytes),))
 
     def verify_one_number(self, n):
             self.assertEqual(n, vlq_to_int(int_to_vlq(n)), '0x%x failed' % (n,))
