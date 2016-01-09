@@ -97,8 +97,16 @@ class VLQTestCase(unittest.TestCase):
             self.assertEqual(vlq_bytes, int_to_vlq(n), 'int_to_vlq(0x%x) failed' % (n,))
 
     def test_behavior(self):
-        vlq_bytes = b''
-        self.assertEqual(None, vlq_to_int(vlq_bytes), 'vlq_to_int(%s) failed' % (repr(vlq_bytes),))
+        TEST_CASE = (
+            (None, b''),
+            (None, b'\x80'),
+            (None, b'\xff'),
+            (None, b'\x80\x80'),
+            (None, b'\xff\xff'),
+        )
+
+        for (n, vlq_bytes) in TEST_CASE:
+            self.assertEqual(n, vlq_to_int(vlq_bytes), 'vlq_to_int(%s) failed' % (repr(vlq_bytes),))
 
     def verify_one_number(self, n):
             self.assertEqual(n, vlq_to_int(int_to_vlq(n)), '0x%x failed' % (n,))
