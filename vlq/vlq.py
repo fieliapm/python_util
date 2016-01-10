@@ -66,6 +66,8 @@ def vlq_to_int(vlq_bytes_iter):
 # test case
 
 import unittest
+import six.moves
+
 
 class VLQTestCase(unittest.TestCase):
     def test_single_number(self):
@@ -115,11 +117,11 @@ class VLQTestCase(unittest.TestCase):
             self.verify_one_number(n)
 
     def test_critical_int_number(self):
-        for exp in range(1000):
+        for exp in six.moves.xrange(1000):
             self.verify_two_number(2**(exp*7))
 
     def test_all_int_number(self):
-        for exp in range(1000):
+        for exp in six.moves.xrange(1000):
             self.verify_two_number(2**exp)
 
 
