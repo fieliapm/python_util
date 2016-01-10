@@ -25,7 +25,6 @@
 
 import sys
 import struct
-import io
 
 
 def int_to_byte(number):
@@ -37,17 +36,16 @@ def byte_to_int(b):
 
 
 def int_to_vlq(number):
-    with io.BytesIO() as vlq_bytebuffer:
-        is_first_byte = True
-        while is_first_byte or number > 0:
-            i = number&0x7f
-            if not is_first_byte:
-                i = i|0x80
-            b = int_to_byte(i)
-            vlq_bytebuffer.write(b)
-            number = number>>7
-            is_first_byte = False
-        return vlq_bytebuffer.getvalue()[::-1]
+    vlq_byte_array = bytearray()
+    i = number&0x7f
+    vlq_byte_array.append(i)
+    number = number>>7
+    while number > 0:
+        i = number&0x7f|0x80
+        vlq_byte_array.append(i)
+        number = number>>7
+    vlq_byte_array.reverse()
+    return bytes(vlq_byte_array)
 
 
 if sys.version_info[0] < 3:
