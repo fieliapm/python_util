@@ -96,9 +96,7 @@ def pack_from_bytes(bytes_iter):
 
 
 def unpack_from_bytes(bytes_):
-    def concatenate_bytes(unpack_byte_iter):
-        return b''.join(unpack_byte_iter)
-    return tuple(map(concatenate_bytes, unpack(bytes_)))
+    return tuple(map(lambda unpacked_byte_iter: b''.join(unpacked_byte_iter), unpack(bytes_)))
 
 
 # test case
