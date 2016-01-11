@@ -92,10 +92,7 @@ def unpack_from_file(fp):
 
 
 def pack_from_bytes(bytes_iter):
-    packed_bytearray = bytearray()
-    for b in pack(map(lambda bytes_: (len(bytes_), bytes_), bytes_iter)):
-        packed_bytearray.append(vlq.byte_to_int(b))
-    return bytes(packed_bytearray)
+    return b''.join(pack(map(lambda bytes_: (len(bytes_), bytes_), bytes_iter)))
 
 
 def unpack_from_bytes(bytes_):
