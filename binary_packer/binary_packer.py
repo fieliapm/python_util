@@ -65,9 +65,9 @@ def pack(size_bytes_pair_iter):
             yield __int_to_byte_func(next(byte_iter_obj))
 
 
-def unpack(bytes_, buffer_size=None):
+def unpack(bytes_):
     is_iterating = [False]
-    def unpack_iter():
+    def unpacked_byte_iter():
         for i in six.moves.xrange(size):
             yield __int_to_byte_func(next(byte_iter_obj))
         is_iterating[0] = False
@@ -78,9 +78,30 @@ def unpack(bytes_, buffer_size=None):
         if size is None:
             break
         is_iterating[0] = True
-        yield unpack_iter()
+        yield unpacked_byte_iter()
         if is_iterating[0]:
             raise RuntimeError('begin new iteraton before last iteration finished')
+
+
+def pack_from_file(fp_iter):
+    return pack(map(lambda fp: (rest_file_size(fp), byte_iter(fp)), fp_iter))
+
+
+def unpack_from_file(fp):
+    return unpack(byte_iter(fp))
+
+
+def pack_from_bytes(bytes_iter):
+    packed_bytearray = bytearray()
+    for b in pack(map(lambda bytes_: (len(bytes_), bytes_), bytes_iter)):
+        packed_bytearray.append(vlq.byte_to_int(b))
+    return bytes(packed_bytearray)
+
+
+def unpack_from_bytes(bytes_):
+    def concatenate_bytes(unpack_byte_iter):
+        return b''.join(unpack_byte_iter)
+    return tuple(map(concatenate_bytes, unpack(bytes_)))
 
 
 # test case
@@ -90,9 +111,9 @@ import io
 
 
 class BinaryPackerTestCase(unittest.TestCase):
-    def pack_unpack_test(self, is_fp):
+    def pack_unpack_test(self, is_fp, is_from):
         origin_bytes_list = []
-        size_bytes_pair_list = []
+        item_list = []
         for exp in six.moves.xrange(20):
             n = 2**exp
             for i in (n-1, n):
@@ -100,51 +121,81 @@ class BinaryPackerTestCase(unittest.TestCase):
                 origin_bytes_list.append(origin_bytes)
                 if is_fp:
                     fp = io.BytesIO(origin_bytes)
-                    size = rest_file_size(fp)
-                    byte_iter_obj = byte_iter(fp)
+                    if is_from:
+                        item = fp
+                    else:
+                        size = rest_file_size(fp)
+                        byte_iter_obj = byte_iter(fp)
+                        item = (size, byte_iter_obj)
                 else:
-                    size = len(origin_bytes)
-                    byte_iter_obj = origin_bytes
-                size_bytes_pair_list.append((size, byte_iter_obj))
+                    if is_from:
+                        item = origin_bytes
+                    else:
+                        size = len(origin_bytes)
+                        item = (size, iter(origin_bytes))
+                item_list.append(item)
 
         if is_fp:
             packed_stream = io.BytesIO()
-        else:
-            packed_bytearray = bytearray()
-        for b in pack(iter(size_bytes_pair_list)):
-            if is_fp:
-                packed_stream.write(b)
+            if is_from:
+                packed_byte_iter = pack_from_file(iter(item_list))
             else:
-                packed_bytearray.append(vlq.byte_to_int(b))
+                packed_byte_iter = pack(iter(item_list))
+            for b in packed_byte_iter:
+                packed_stream.write(b)
+        else:
+            if is_from:
+                packed_bytes = pack_from_bytes(iter(item_list))
+            else:
+                packed_bytearray = bytearray()
+                packed_byte_iter = pack(iter(item_list))
+                for b in packed_byte_iter:
+                    packed_bytearray.append(vlq.byte_to_int(b))
+                packed_bytes = bytes(packed_bytearray)
 
         if is_fp:
             packed_stream.seek(0)
-            byte_iter_obj = byte_iter(packed_stream)
+            if is_from:
+                unpack_iter = unpack_from_file(packed_stream)
+            else:
+                byte_iter_obj = byte_iter(packed_stream)
+                unpack_iter = unpack(byte_iter_obj)
         else:
-            byte_iter_obj = bytes(packed_bytearray)
+            if is_from:
+                unpack_iter = unpack_from_bytes(packed_bytes)
+            else:
+                unpack_iter = unpack(iter(packed_bytes))
         origin_bytes_iter = iter(origin_bytes_list)
-        for unpack_iter in unpack(byte_iter_obj):
+
+        for unpacked_byte_iter in unpack_iter:
             if is_fp:
                 unpacked_stream = io.BytesIO()
-            else:
-                unpacked_bytearray = bytearray()
-            for b in unpack_iter:
-                if is_fp:
+                for b in unpacked_byte_iter:
                     unpacked_stream.write(b)
-                else:
-                    unpacked_bytearray.append(vlq.byte_to_int(b))
-            if is_fp:
                 unpacked_bytes = unpacked_stream.getvalue()
             else:
-                unpacked_bytes = bytes(unpacked_bytearray)
+                if is_from:
+                    unpacked_bytes = unpacked_byte_iter
+                else:
+                    unpacked_bytearray = bytearray()
+                    for b in unpacked_byte_iter:
+                        unpacked_bytearray.append(vlq.byte_to_int(b))
+                    unpacked_bytes = bytes(unpacked_bytearray)
+
             origin_bytes = next(origin_bytes_iter)
             self.assertEqual(unpacked_bytes, origin_bytes, 'unpacked data is wrong')
 
-    def test_pack_unpack_bytes(self):
-        self.pack_unpack_test(False)
+    def test_pack_unpack_from_fp(self):
+        self.pack_unpack_test(True, True)
+
+    def test_pack_unpack_from_bytes(self):
+        self.pack_unpack_test(False, True)
 
     def test_pack_unpack_fp(self):
-        self.pack_unpack_test(True)
+        self.pack_unpack_test(True, False)
+
+    def test_pack_unpack_bytes(self):
+        self.pack_unpack_test(False, False)
 
 
 if __name__ == '__main__':
