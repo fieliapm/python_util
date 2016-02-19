@@ -36,6 +36,9 @@ class SignUrl(helper.KeyNameMixin):
     def generate_download_url(self, name_tuple, duration):
         raise NotImplementedError('generate_download_url() is not implemented')
 
+    def public_download_url(self, name_tuple):
+        raise NotImplementedError('public_download_url() is not implemented')
+
 
 class GoogleCloudStorageSignUrl(SignUrl):
     def __init__(self, server_name, bucket_name, json_credentials_path=None, json_credentials_string=None):
@@ -54,6 +57,10 @@ class GoogleCloudStorageSignUrl(SignUrl):
         name = self._get_key_name(name_tuple)
         return helper.google_cloud_storage_generate_download_url(self.credentials, self.bucket_name, name, duration)
 
+    def public_download_url(self, name_tuple):
+        name = self._get_key_name(name_tuple)
+        return helper.google_cloud_storage_public_download_url(self.bucket_name, name)
+
 
 class AmazonCloudFrontSignUrl(SignUrl):
     def __init__(self, server_name, domain_name, key_pair_id, private_key_string):
@@ -66,6 +73,10 @@ class AmazonCloudFrontSignUrl(SignUrl):
         name = self._get_key_name(name_tuple)
         return helper.amazon_cloudfront_generate_download_url(self.distribution, self.key_pair_id, self.private_key_string,
             name, duration)
+
+    def public_download_url(self, name_tuple):
+        name = self._get_key_name(name_tuple)
+        return helper.amazon_cloudfront_public_download_url(self.distribution, name)
 
 
 def new_sign_url(sign_url_class_name, *args, **kwargs):

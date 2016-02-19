@@ -64,6 +64,9 @@ class Storage(helper.KeyNameMixin):
     def download_file(self, name_tuple, fp):
         raise NotImplementedError('download_file() is not implemented')
 
+    def set_file_access_control(self, name_tuple, is_public):
+        raise NotImplementedError('set_file_access_control() is not implemented')
+
     def get_file_info(self, name_tuple):
         raise NotImplementedError('get_file_info() is not implemented')
 
@@ -82,7 +85,6 @@ class GoogleCloudStorage(Storage):
             self.client = gcloud.storage.client.Client(project, self.credentials)
         else:
             raise ValueError('must assign json_credential_path or json_credential_string')
-
         self.bucket = self.client.get_bucket(bucket_name)
 
     def list_file(self, name_tuple_prefix, max_files=None):
@@ -122,6 +124,18 @@ class GoogleCloudStorage(Storage):
         blob = self.bucket.get_blob(self._get_key_name(name_tuple))
         if blob is not None:
             blob.download_to_file(fp)
+            return True
+        else:
+            return False
+
+    def set_file_access_control(self, name_tuple, is_public):
+        blob = self.bucket.get_blob(self._get_key_name(name_tuple))
+        if blob is not None:
+            if bool(is_public):
+                blob.make_public()
+            else:
+                blob.acl.all().revoke_read()
+                blob.acl.save()
             return True
         else:
             return False
@@ -203,6 +217,17 @@ class GoogleCloudStorage_Boto(Storage):
         else:
             return False
 
+    def set_file_access_control(self, name_tuple, is_public):
+        key = self.bucket.get_key(self._get_key_name(name_tuple))
+        if key is not None:
+            if bool(is_public):
+                key.make_public()
+            else:
+                key.set_canned_acl('private')
+            return True
+        else:
+            return False
+
     def get_file_info(self, name_tuple):
         key = self.bucket.get_key(self._get_key_name(name_tuple))
         if key is None:
@@ -270,6 +295,17 @@ class AmazonS3Storage(Storage):
         key = self.bucket.get_key(self._get_key_name(name_tuple))
         if key is not None:
             key.get_contents_to_file(fp)
+            return True
+        else:
+            return False
+
+    def set_file_access_control(self, name_tuple, is_public):
+        key = self.bucket.get_key(self._get_key_name(name_tuple))
+        if key is not None:
+            if bool(is_public):
+                key.make_public()
+            else:
+                key.set_canned_acl('private')
             return True
         else:
             return False
@@ -367,6 +403,19 @@ class AmazonCloudFrontS3Storage(Storage):
         key = bucket.get_key(path)
         if key is not None:
             key.get_contents_to_file(fp)
+            return True
+        else:
+            return False
+
+    def set_file_access_control(self, name_tuple, is_public):
+        path = self._get_key_name(name_tuple)
+        bucket = self.__get_bucket()
+        key = bucket.get_key(path)
+        if key is not None:
+            if bool(is_public):
+                key.make_public()
+            else:
+                key.set_canned_acl('private')
             return True
         else:
             return False

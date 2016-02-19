@@ -84,18 +84,34 @@ def create_service_account_credentials_from_json(json_credentials_string):
 
 
 # for Google Cloud
-def google_cloud_storage_generate_download_url(credentials, bucket_name, name, duration):
-    resource = '/{bucket_name}/{quoted_name}'.format(
+
+def __google_cloud_storage_resource_path(bucket_name, name):
+    return '/{bucket_name}/{quoted_name}'.format(
         bucket_name=bucket_name,
         quoted_name=six.moves.urllib.parse.quote(name, safe=''))
+
+
+def google_cloud_storage_public_download_url(bucket_name, name):
+    resource = __google_cloud_storage_resource_path(bucket_name, name)
+    return '{endpoint}{resource}'.format(
+        endpoint=gcloud.storage.blob._API_ACCESS_ENDPOINT,
+        resource=resource)
+
+
+def google_cloud_storage_generate_download_url(credentials, bucket_name, name, duration):
+    resource = __google_cloud_storage_resource_path(bucket_name, name)
     return gcloud.credentials.generate_signed_url(credentials, resource, expire_time(duration),
         gcloud.storage.blob._API_ACCESS_ENDPOINT, 'GET')
 
 
 # for Amazon CloudFront
+
+def amazon_cloudfront_public_download_url(distribution, name):
+    return 'https://%s/%s' % (distribution.domain_name, six.moves.urllib.parse.quote(name))
+
+
 def amazon_cloudfront_generate_download_url(distribution, key_pair_id, private_key_string, name, duration):
-    url = 'https://%s/%s' % (distribution.domain_name, six.moves.urllib.parse.quote(name))
-    signed_url = distribution.create_signed_url(url, key_pair_id,
+    url = amazon_cloudfront_public_download_url(distribution, name)
+    return distribution.create_signed_url(url, key_pair_id,
         expire_time=expire_time(duration), private_key_string=private_key_string)
-    return signed_url
 

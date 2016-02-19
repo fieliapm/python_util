@@ -41,8 +41,10 @@ def test_storage(storage_name, storage, content_type=None):
     with open('t1.jpg', 'wb') as fp:
         print('[%s] download status: %s' % (storage_name, repr(storage.download_file(('t1',u'エグゼリカ01.jpg'), fp))))
     print('[%s] copy status: %s' % (storage_name, repr(storage.copy_file(('t1',u'エグゼリカ01.jpg'), ('t2',u'エグゼリカ02.jpg')))))
+    print('[%s] acl private: %s' % (storage_name, repr(storage.set_file_access_control(('t1',u'エグゼリカ01.jpg'), False))))
     print('[%s] info: %s' % (storage_name, repr(storage.get_file_info(('t1',u'エグゼリカ01.jpg')))))
     print('[%s] url: %s' % (storage_name, storage.generate_url(('t1',u'エグゼリカ01.jpg'), 60*1)))
+    print('[%s] acl public: %s' % (storage_name, repr(storage.set_file_access_control(('t2',u'エグゼリカ02.jpg'), True))))
     print('[%s] info: %s' % (storage_name, repr(storage.get_file_info(('t2',u'エグゼリカ02.jpg')))))
     print('[%s] url: %s' % (storage_name, storage.generate_url(('t2',u'エグゼリカ02.jpg'), 60*1)))
 
@@ -52,12 +54,15 @@ def test_storage(storage_name, storage, content_type=None):
         print('[%s] upload status: %s' % (storage_name, repr(storage.upload_file(['t2','takame01.jpg'], fp, content_type=content_type))))
     with open('t2.jpg', 'wb') as fp:
         print('[%s] download status: %s' % (storage_name, repr(storage.download_file(['t2','takame01.jpg'], fp))))
-    print('[%s] copy status: %s' % (storage_name, repr(storage.copy_file(['t2','takame01.jpg'], ['t1', 'takame02.jpg']))))
+    print('[%s] copy status: %s' % (storage_name, repr(storage.copy_file(['t2','takame01.jpg'], ['t1','takame02.jpg']))))
+    print('[%s] acl private: %s' % (storage_name, repr(storage.set_file_access_control(['t2','takame01.jpg'], False))))
     print('[%s] info: %s' % (storage_name, repr(storage.get_file_info(['t2','takame01.jpg']))))
     print('[%s] url: %s' % (storage_name, storage.generate_url(['t2','takame01.jpg'], 60*1)))
+    print('[%s] acl public: %s' % (storage_name, repr(storage.set_file_access_control(['t1','takame02.jpg'], True))))
     print('[%s] info: %s' % (storage_name, repr(storage.get_file_info(['t1','takame02.jpg']))))
     print('[%s] url: %s' % (storage_name, storage.generate_url(['t1','takame02.jpg'], 60*1)))
 
+    print('[%s] invalid acl: %s' % (storage_name, repr(storage.set_file_access_control(['t3',u'エグゼリカ01.jpg'], False))))
     print('[%s] invalid info: %s' % (storage_name, repr(storage.get_file_info(['t3',u'エグゼリカ01.jpg']))))
     print('[%s] invalid url: %s' % (storage_name, str(storage.generate_url(['t3',u'エグゼリカ01.jpg'], 60*1))))
 
@@ -71,10 +76,10 @@ def test_storage(storage_name, storage, content_type=None):
 
 
 def test_sign_url(sign_url_name, sign_url):
-    print('[%s] url: %s' % (sign_url_name, sign_url.generate_download_url(['t1',u'エグゼリカ01.jpg'], 60*1)))
-    print('[%s] url: %s' % (sign_url_name, sign_url.generate_download_url(['t2',u'エグゼリカ02.jpg'], 60*1)))
-    print('[%s] url: %s' % (sign_url_name, sign_url.generate_download_url(['t2','takame01.jpg'], 60*1)))
-    print('[%s] url: %s' % (sign_url_name, sign_url.generate_download_url(['t1','takame02.jpg'], 60*1)))
+    print('[%s] private url: %s' % (sign_url_name, sign_url.generate_download_url(['t1',u'エグゼリカ01.jpg'], 60*1)))
+    print('[%s] public url: %s' % (sign_url_name, sign_url.public_download_url(['t2',u'エグゼリカ02.jpg'])))
+    print('[%s] private url: %s' % (sign_url_name, sign_url.generate_download_url(['t2','takame01.jpg'], 60*1)))
+    print('[%s] public url: %s' % (sign_url_name, sign_url.public_download_url(['t1','takame02.jpg'])))
     print('[%s] invalid url: %s' % (sign_url_name, str(sign_url.generate_download_url(['t3',u'エグゼリカ01.jpg'], 60*1))))
     print('')
 
