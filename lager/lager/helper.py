@@ -52,7 +52,7 @@ def expire_time(duration):
 
 
 def base64_to_hex(base64data):
-    return binascii.hexlify(base64.b64decode(base64data)).decode('utf-8')
+    return binascii.hexlify(base64.standard_b64decode(base64data)).decode('utf-8')
 
 
 class KeyNameMixin(object):
