@@ -46,14 +46,5 @@ def add_response_headers(headers={}):
 
 def cache_control(second):
     '''This decorator passes cache control'''
-    def decorator(func):
-        headers = {
-            'Cache-Control': 'public,s-maxage=%d' % (second,),
-        }
-        @wraps(func)
-        @add_response_headers(headers)
-        def decorated_function(*args, **kwargs):
-            return func(*args, **kwargs)
-        return decorated_function
-    return decorator
+    return add_response_headers({'Cache-Control': 'public,s-maxage=%d' % (second,)})
 
