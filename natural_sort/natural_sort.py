@@ -27,11 +27,11 @@ import re
 
 
 def natural_sort_key(string):
-    def __parse_number_if_available(item):
+    def __try_to_parse_number(item):
         try:
             int_item = int(item)
         except (TypeError, ValueError):
             int_item = item
         return int_item
-    return tuple(map(__parse_number_if_available, re.split('(\d+)', string)))
+    return tuple(map(__try_to_parse_number, re.split('(\d+)', string)))
 
