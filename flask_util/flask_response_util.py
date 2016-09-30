@@ -29,15 +29,19 @@ import flask
 import werkzeug.http
 
 
-def add_response_headers(headers={}):
-    '''This decorator adds the headers passed in to the response'''
+def add_cache_control_to_headers(headers, second):
+    headers['Cache-Control'] = 'public,s-maxage=%d' % (second,)
+
+
+def template_response_headers(headers={}):
+    '''This decorator attaches template headers to every response returned by request processing function'''
     def decorator(func):
         @wraps(func)
         def decorated_function(*args, **kwargs):
             response = flask.make_response(func(*args, **kwargs))
             original_headers = response.headers
             for (header, value) in headers.items():
-                original_headers[header] = value
+                original_headers.setdefault(header, value)
             original_headers.setdefault('Date', werkzeug.http.http_date())
             return response
         return decorated_function
@@ -45,6 +49,8 @@ def add_response_headers(headers={}):
 
 
 def cache_control(second):
-    '''This decorator passes cache control'''
-    return add_response_headers({'Cache-Control': 'public,s-maxage=%d' % (second,)})
+    '''This decorator attaches predefined cache control to every response returned by request processing function'''
+    headers = {}
+    add_cache_control_to_headers(headers, second)
+    return template_response_headers(headers)
 
