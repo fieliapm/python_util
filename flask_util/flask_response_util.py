@@ -23,6 +23,7 @@
 ################################################################################
 
 
+import math
 import time
 from functools import wraps
 
@@ -30,8 +31,29 @@ import flask
 import werkzeug.http
 
 
-def add_cache_control_to_headers(headers, second):
-    headers['Cache-Control'] = 'public,s-maxage=%d' % (second,)
+def fractional_part(x):
+    return x-math.floor(x)
+
+
+def round_maxage(current_unix_timestamp, second):
+    return max(int(math.floor(fractional_part(current_unix_timestamp)+second)), 0)
+
+
+def __add_cache_control_to_headers(headers, s_maxage):
+    headers['Cache-Control'] = 'public,s-maxage=%d' % (s_maxage,)
+
+
+def add_precise_cache_control_to_headers(headers, second):
+    '''Add precise cache control s-maxage to headers.
+    It accept second of type float.
+
+    CAUTION:
+    If we round up current unix timestamp and use it in request processing function,
+    we must replace flask.g.current_unix_timestamp with rounded up timestamp before calling add_precise_cache_control_to_headers()
+    and return point of request processing function.
+    '''
+    s_maxage = round_maxage(flask.g.current_unix_timestamp, second)
+    __add_cache_control_to_headers(headers, s_maxage)
 
 
 def template_response_headers(headers={}):
@@ -40,6 +62,11 @@ def template_response_headers(headers={}):
     Because the floor of represented time stored in flask.g.current_unix_timestamp is same as represented time in HTTP header field "Date",
     we can tight our request processing logic with HTTP header field "Date".
     BTW, we can access flask.g.current_unix_timestamp in the body of decorated function.
+
+    CAUTION:
+    If we round up current unix timestamp and use it in request processing function,
+    we must replace flask.g.current_unix_timestamp with rounded up timestamp before calling add_precise_cache_control_to_headers()
+    and return point of request processing function.
     '''
     def decorator(func):
         @wraps(func)
@@ -50,15 +77,16 @@ def template_response_headers(headers={}):
             for (header, value) in headers.items():
                 original_headers.setdefault(header, value)
             original_headers.setdefault('Date', werkzeug.http.http_date(flask.g.current_unix_timestamp))
+            original_headers.setdefault('Timestamp', repr(flask.g.current_unix_timestamp))
             return response
         return decorated_function
     return decorator
 
 
-def cache_control(second):
+def cache_control(s_maxage):
     '''This decorator attaches predefined cache control to every response returned by request processing function.
     '''
     headers = {}
-    add_cache_control_to_headers(headers, second)
+    __add_cache_control_to_headers(headers, s_maxage)
     return template_response_headers(headers)
 
