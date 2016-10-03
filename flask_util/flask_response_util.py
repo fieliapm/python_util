@@ -23,6 +23,7 @@
 ################################################################################
 
 
+import time
 from functools import wraps
 
 import flask
@@ -34,22 +35,29 @@ def add_cache_control_to_headers(headers, second):
 
 
 def template_response_headers(headers={}):
-    '''This decorator attaches template headers to every response returned by request processing function'''
+    '''This decorator attaches template headers to every response returned by request processing function.
+    flask.g.current_unix_timestamp contains current UNIX timestamp.
+    Because the floor of represented time stored in flask.g.current_unix_timestamp is same as represented time in HTTP Date header,
+    we can tight our request processing logic with HTTP Date header.
+    BTW, we can access flask.g.current_unix_timestamp in the body of decorated function.
+    '''
     def decorator(func):
         @wraps(func)
         def decorated_function(*args, **kwargs):
+            flask.g.current_unix_timestamp = time.time()
             response = flask.make_response(func(*args, **kwargs))
             original_headers = response.headers
             for (header, value) in headers.items():
                 original_headers.setdefault(header, value)
-            original_headers.setdefault('Date', werkzeug.http.http_date())
+            original_headers.setdefault('Date', werkzeug.http.http_date(flask.g.current_unix_timestamp))
             return response
         return decorated_function
     return decorator
 
 
 def cache_control(second):
-    '''This decorator attaches predefined cache control to every response returned by request processing function'''
+    '''This decorator attaches predefined cache control to every response returned by request processing function.
+    '''
     headers = {}
     add_cache_control_to_headers(headers, second)
     return template_response_headers(headers)
