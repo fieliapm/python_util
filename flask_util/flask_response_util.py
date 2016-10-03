@@ -77,7 +77,6 @@ def template_response_headers(headers={}):
             for (header, value) in headers.items():
                 original_headers.setdefault(header, value)
             original_headers.setdefault('Date', werkzeug.http.http_date(flask.g.current_unix_timestamp))
-            original_headers.setdefault('Timestamp', repr(flask.g.current_unix_timestamp))
             return response
         return decorated_function
     return decorator
