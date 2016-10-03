@@ -37,8 +37,8 @@ def add_cache_control_to_headers(headers, second):
 def template_response_headers(headers={}):
     '''This decorator attaches template headers to every response returned by request processing function.
     flask.g.current_unix_timestamp contains current UNIX timestamp.
-    Because the floor of represented time stored in flask.g.current_unix_timestamp is same as represented time in HTTP Date header,
-    we can tight our request processing logic with HTTP Date header.
+    Because the floor of represented time stored in flask.g.current_unix_timestamp is same as represented time in HTTP header field "Date",
+    we can tight our request processing logic with HTTP header field "Date".
     BTW, we can access flask.g.current_unix_timestamp in the body of decorated function.
     '''
     def decorator(func):
