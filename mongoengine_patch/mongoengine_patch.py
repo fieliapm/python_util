@@ -34,39 +34,26 @@ if pymongo.version_tuple[0] >= 3:
 # patch get_or_create() because it is not atomic
 
 def get_or_create(self, **query):
-    # get default values from key 'defaults' and remove keyword 'defaults' from query
+    # get default values from key 'defaults' and remove key 'defaults' from query
     defaults = query.pop('defaults', {})
     # the value of a key in defaults have higher priority than the value of the same key in query
-    for key in query:
-        if key not in defaults:
-            defaults[key] = query[key]
-    # extract plain field in defaults
-    defaults_plain_field_set = set(map(lambda key: key.split('__', 1)[0], defaults))
-    # if any required field is not in defaults, add required field and its default value to defaults
-    invalid_field_list = []
-    for (field_name, field_obj) in self._document._fields.items():
-        if field_name not in defaults_plain_field_set:
-            if field_obj.default is None:
-                if field_obj.required:
-                    invalid_field_list.append(field_name)
-            else:
-                if hasattr(field_obj.default, '__call__'):
-                    default_value = field_obj.default()
-                else:
-                    default_value = field_obj.default
-                defaults[field_name] = default_value
-    if len(invalid_field_list) > 0:
-        raise mongoengine.errors.ValidationError('Field is required: %s' % (repr(invalid_field_list),))
+    create_kwargs = query.copy()
+    create_kwargs.update(defaults)
 
-    modify_dict = {
+    # if any required field is not in create_kwargs, add required field and its default value to upsert_dict
+    upsert_doc = self._document(**create_kwargs)
+    upsert_doc.validate()
+    upsert_dict = upsert_doc.to_mongo().to_dict()
+
+    modify_kwargs = {
         'upsert': True,
         'full_response': True,
         'new': True,
     }
-    for key in defaults:
-        modify_dict['set_on_insert__' + key] = defaults[key]
+    for key in upsert_dict:
+        modify_kwargs['set_on_insert__' + key] = upsert_dict[key]
 
-    result = self(**query).modify(**modify_dict)
+    result = self(**query).modify(**modify_kwargs)
 
     return (result['value'], 'upserted' in result['lastErrorObject'])
 
@@ -117,10 +104,10 @@ class MongoEnginePatchTestCase(unittest.TestCase):
 
         counter = 0
         with self.assertRaises(mongoengine.errors.ValidationError):
-            (contact, is_created) = Contact.objects.get_or_create(name=u'井上麻里奈', age=17, defaults={'age': 18, 'network_info__blog': 'http://yaplog.jp/marinavi/', 'network_info__social_network__twitter': 'mari_navi'})
+            (contact, is_created) = Contact.objects.get_or_create(name=u'井上麻里奈', age=17, defaults={'age': 18, 'network_info': {'blog': 'http://yaplog.jp/marinavi/', 'social_network': {'twitter': 'mari_navi'}}})
 
         counter = 1
-        (contact, is_created) = Contact.objects.get_or_create(name=u'井上麻里奈', age=17, defaults={'age': 18, 'sex': 'female', 'network_info__blog': 'http://yaplog.jp/marinavi/', 'network_info__social_network__twitter': 'mari_navi'})
+        (contact, is_created) = Contact.objects.get_or_create(name=u'井上麻里奈', age=17, defaults={'age': 18, 'sex': 'female', 'network_info': {'blog': 'http://yaplog.jp/marinavi/', 'social_network': {'twitter': 'mari_navi'}}})
         self.assertTrue(is_created, 'it should be new contact')
         self.assertEqual(contact.name, u'井上麻里奈', 'name is wrong')
         self.assertEqual(contact.age, 18, 'age is wrong')
@@ -128,10 +115,12 @@ class MongoEnginePatchTestCase(unittest.TestCase):
         self.assertEqual(contact.job, 'seiyuu', 'job is wrong')
         self.assertEqual(contact.counter, 1, 'counter is not 1')
         self.assertEqual(contact.network_info.blog, 'http://yaplog.jp/marinavi/', 'blog URL is wrong')
+        self.assertEqual(contact.network_info.social_network.facebook, None, 'facebook account is wrong')
         self.assertEqual(contact.network_info.social_network.twitter, 'mari_navi', 'twitter account is wrong')
+        self.assertEqual(contact.network_info.social_network.plurk, None, 'plurk account is wrong')
 
         counter = 2
-        (contact, is_created) = Contact.objects.get_or_create(name=u'井上麻里奈', age=18, defaults={'age': 30, 'sex': 'male', 'network_info__blog': 'http://yaplog.jp/navimari/', 'network_info__social_network__twitter': 'navi_mari'})
+        (contact, is_created) = Contact.objects.get_or_create(name=u'井上麻里奈', age=18, defaults={'age': 30, 'sex': 'male', 'network_info': {'blog': 'http://yaplog.jp/marinavi/', 'social_network': {'twitter': 'mari_navi'}}})
         self.assertFalse(is_created, 'it should be old contact')
         self.assertEqual(contact.name, u'井上麻里奈', 'name is wrong')
         self.assertEqual(contact.age, 18, 'age is wrong')
@@ -139,10 +128,12 @@ class MongoEnginePatchTestCase(unittest.TestCase):
         self.assertEqual(contact.job, 'seiyuu', 'job is wrong')
         self.assertEqual(contact.counter, 1, 'counter is not 1')
         self.assertEqual(contact.network_info.blog, 'http://yaplog.jp/marinavi/', 'blog URL is wrong')
+        self.assertEqual(contact.network_info.social_network.facebook, None, 'facebook account is wrong')
         self.assertEqual(contact.network_info.social_network.twitter, 'mari_navi', 'twitter account is wrong')
+        self.assertEqual(contact.network_info.social_network.plurk, None, 'plurk account is wrong')
 
         counter = 3
-        (contact, is_created) = Contact.objects.get_or_create(name=u'林原めぐみ', age=47, defaults={'age': 48, 'sex': 'female', 'network_info__blog': 'http://ameblo.jp/megumi-hayashibara-hs/'})
+        (contact, is_created) = Contact.objects.get_or_create(name=u'林原めぐみ', age=47, defaults={'age': 48, 'sex': 'female', 'network_info': {'blog': 'http://ameblo.jp/megumi-hayashibara-hs/'}})
         self.assertTrue(is_created, 'it should be new contact')
         self.assertEqual(contact.name, u'林原めぐみ', 'name is wrong')
         self.assertEqual(contact.age, 48, 'age is wrong')
@@ -150,7 +141,9 @@ class MongoEnginePatchTestCase(unittest.TestCase):
         self.assertEqual(contact.job, 'seiyuu', 'job is wrong')
         self.assertEqual(contact.counter, 3, 'counter is not 3')
         self.assertEqual(contact.network_info.blog, 'http://ameblo.jp/megumi-hayashibara-hs/', 'blog URL is wrong')
+        self.assertEqual(contact.network_info.social_network.facebook, None, 'facebook account is wrong')
         self.assertEqual(contact.network_info.social_network.twitter, None, 'twitter account is wrong')
+        self.assertEqual(contact.network_info.social_network.plurk, None, 'plurk account is wrong')
 
 
 if __name__ == '__main__':
