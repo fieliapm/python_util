@@ -27,13 +27,7 @@ import mongoengine
 import pymongo
 
 
-if pymongo.version_tuple[0] >= 3:
-    raise ImportError('With PyMongo 3+, it is not possible anymore to implement get_or_create().')
-
-
-# patch get_or_create() because it is not atomic
-
-def get_or_create(self, **query):
+def _get_or_create(query_set, query):
     # get default values from key 'defaults' and remove key 'defaults' from query
     defaults = query.pop('defaults', {})
     # the value of a key in defaults have higher priority than the value of the same key in query
@@ -41,23 +35,60 @@ def get_or_create(self, **query):
     create_kwargs.update(defaults)
 
     # if any required field is not in create_kwargs, add required field and its default value to upsert_dict
-    upsert_doc = self._document(**create_kwargs)
+    upsert_doc = query_set._document(**create_kwargs)
     upsert_doc.validate()
     upsert_dict = upsert_doc.to_mongo().to_dict()
 
     modify_kwargs = {
         'upsert': True,
-        'full_response': True,
-        'new': True,
     }
     for key in upsert_dict:
         modify_kwargs['set_on_insert__' + key] = upsert_dict[key]
 
+    return (upsert_doc, modify_kwargs)
+
+
+def get_or_create_v2(self, **query):
+    (upsert_doc, modify_kwargs) = _get_or_create(self, query)
+
+    modify_kwargs['full_response'] = True
+    modify_kwargs['new'] = True
+
     result = self(**query).modify(**modify_kwargs)
+    upsert_doc = result['value']
+    created = 'upserted' in result['lastErrorObject']
 
-    return (result['value'], 'upserted' in result['lastErrorObject'])
+    return (upsert_doc, created)
 
-mongoengine.queryset.QuerySet.get_or_create = get_or_create
+
+def get_or_create_v3(self, **query):
+    (upsert_doc, modify_kwargs) = _get_or_create(self, query)
+
+    modify_kwargs['full_result'] = True
+
+    result = self(**query).update(**modify_kwargs)
+    isdict = isinstance(result, dict)
+    if isdict:
+        created = not result['updatedExisting']
+    else:
+        created = result.upserted_id is not None
+    if created:
+        if isdict:
+            upsert_doc.id = result['upserted']
+        else:
+            upsert_doc.id = result.upserted_id
+        upsert_doc._clear_changed_fields()
+    else:
+        upsert_doc = self.get(**query)
+
+    return (upsert_doc, created)
+
+
+# patch get_or_create() because it is not atomic
+if pymongo.version_tuple[0] < 3:
+    mongoengine.queryset.QuerySet.get_or_create = get_or_create_v2
+else:
+    mongoengine.queryset.QuerySet.get_or_create = get_or_create_v3
 
 
 # test case
@@ -88,6 +119,14 @@ class Contact(mongoengine.document.Document):
     job = mongoengine.fields.StringField(required=True, default='seiyuu')
     counter = mongoengine.fields.LongField(default=get_counter)
     network_info = mongoengine.fields.EmbeddedDocumentField(NetworkInfo, default=NetworkInfo)
+    meta = {
+        'indexes': [
+            {
+                'fields': ['name', 'age'],
+                'unique': True,
+            },
+        ],
+    }
 
 
 class MongoEnginePatchTestCase(unittest.TestCase):
@@ -109,6 +148,7 @@ class MongoEnginePatchTestCase(unittest.TestCase):
         counter = 1
         (contact, is_created) = Contact.objects.get_or_create(name=u'井上麻里奈', age=17, defaults={'age': 18, 'sex': 'female', 'network_info': {'blog': 'http://yaplog.jp/marinavi/', 'social_network': {'twitter': 'mari_navi'}}})
         self.assertTrue(is_created, 'it should be new contact')
+        self.assertNotEqual(contact.id, None, 'id is None')
         self.assertEqual(contact.name, u'井上麻里奈', 'name is wrong')
         self.assertEqual(contact.age, 18, 'age is wrong')
         self.assertEqual(contact.sex, 'female', 'sex is wrong')
@@ -122,6 +162,7 @@ class MongoEnginePatchTestCase(unittest.TestCase):
         counter = 2
         (contact, is_created) = Contact.objects.get_or_create(name=u'井上麻里奈', age=18, defaults={'age': 30, 'sex': 'male', 'network_info': {'blog': 'http://yaplog.jp/marinavi/', 'social_network': {'twitter': 'mari_navi'}}})
         self.assertFalse(is_created, 'it should be old contact')
+        self.assertNotEqual(contact.id, None, 'id is None')
         self.assertEqual(contact.name, u'井上麻里奈', 'name is wrong')
         self.assertEqual(contact.age, 18, 'age is wrong')
         self.assertEqual(contact.sex, 'female', 'sex is wrong')
@@ -135,6 +176,21 @@ class MongoEnginePatchTestCase(unittest.TestCase):
         counter = 3
         (contact, is_created) = Contact.objects.get_or_create(name=u'林原めぐみ', age=47, defaults={'age': 48, 'sex': 'female', 'network_info': {'blog': 'http://ameblo.jp/megumi-hayashibara-hs/'}})
         self.assertTrue(is_created, 'it should be new contact')
+        self.assertNotEqual(contact.id, None, 'id is None')
+        self.assertEqual(contact.name, u'林原めぐみ', 'name is wrong')
+        self.assertEqual(contact.age, 48, 'age is wrong')
+        self.assertEqual(contact.sex, 'female', 'sex is wrong')
+        self.assertEqual(contact.job, 'seiyuu', 'job is wrong')
+        self.assertEqual(contact.counter, 3, 'counter is not 3')
+        self.assertEqual(contact.network_info.blog, 'http://ameblo.jp/megumi-hayashibara-hs/', 'blog URL is wrong')
+        self.assertEqual(contact.network_info.social_network.facebook, None, 'facebook account is wrong')
+        self.assertEqual(contact.network_info.social_network.twitter, None, 'twitter account is wrong')
+        self.assertEqual(contact.network_info.social_network.plurk, None, 'plurk account is wrong')
+
+        counter = 4
+        (contact, is_created) = Contact.objects.get_or_create(name=u'林原めぐみ', age=48, defaults={'age': 49, 'sex': 'male', 'network_info': {'blog': 'http://ameblo.jp/megumi-hayashibara-hs/'}})
+        self.assertFalse(is_created, 'it should be old contact')
+        self.assertNotEqual(contact.id, None, 'id is None')
         self.assertEqual(contact.name, u'林原めぐみ', 'name is wrong')
         self.assertEqual(contact.age, 48, 'age is wrong')
         self.assertEqual(contact.sex, 'female', 'sex is wrong')
