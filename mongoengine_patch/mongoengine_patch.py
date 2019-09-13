@@ -67,16 +67,13 @@ def get_or_create_v3(self, **query):
     modify_kwargs['full_result'] = True
 
     result = self(**query).update(**modify_kwargs)
-    isdict = isinstance(result, dict)
-    if isdict:
-        created = not result['updatedExisting']
-    else:
-        created = result.upserted_id is not None
+    if not isinstance(result, dict):
+        result = result.raw_result
+    #created = result.upserted_id is not None
+    created = not result['updatedExisting']
     if created:
-        if isdict:
-            upsert_doc.id = result['upserted']
-        else:
-            upsert_doc.id = result.upserted_id
+        #upsert_doc.id = result.upserted_id
+        upsert_doc.id = result['upserted']
         upsert_doc._clear_changed_fields()
     else:
         upsert_doc = self.get(**query)
