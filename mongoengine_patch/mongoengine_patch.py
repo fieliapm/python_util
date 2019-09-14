@@ -23,13 +23,35 @@
 ################################################################################
 
 
+import warnings
+
 import mongoengine
 import pymongo
+
+
+def _does_query_include_index(query, index_spec):
+    for (field, order) in index_spec['fields']:
+        if field not in query:
+            return False
+    return True
+
+
+def _does_query_match_unique_document(query_set, query):
+    for index_spec in query_set._document._meta['index_specs']:
+        if 'unique' in index_spec and index_spec['unique']:
+            if _does_query_include_index(query, index_spec):
+                return True
+    return False
 
 
 def _get_or_create(query_set, query):
     # get default values from key 'defaults' and remove key 'defaults' from query
     defaults = query.pop('defaults', {})
+
+    # check if this query includes any unique index
+    if not _does_query_match_unique_document(query_set, query):
+        warnings.warn('this query does not include any unique index', RuntimeWarning, stacklevel=3)
+
     # the value of a key in defaults have higher priority than the value of the same key in query
     create_kwargs = query.copy()
     create_kwargs.update(defaults)
@@ -120,6 +142,18 @@ class Contact(mongoengine.document.Document):
         'indexes': [
             {
                 'fields': ['name', 'age'],
+                'unique': True,
+            },
+            {
+                'fields': ['sex'],
+                'unique': False,
+            },
+            {
+                'fields': ['job'],
+                'unique': False,
+            },
+            {
+                'fields': ['counter'],
                 'unique': True,
             },
         ],
