@@ -92,7 +92,7 @@ def get_or_create_v3(self, **query):
     if not isinstance(result, dict):
         result = result.raw_result
     #created = result.upserted_id is not None
-    created = not result['updatedExisting']
+    created = 'upserted' in result
     if created:
         #upsert_doc.id = result.upserted_id
         upsert_doc.id = result['upserted']
