@@ -32,9 +32,9 @@ import binascii
 import json
 
 import six.moves.urllib.parse
-import gcloud.credentials
-import gcloud.storage.blob
-import oauth2client.service_account
+import google.cloud.storage._signing
+import google.cloud.storage.blob
+import google.oauth2.service_account
 
 
 def get_key_name(server_name, name_tuple):
@@ -68,21 +68,7 @@ class KeyNameMixin(object):
 # for Google Cloud
 def create_service_account_credentials_from_json(json_credentials_string):
     json_credentials_data = json.loads(json_credentials_string)
-
-    credentials_type = json_credentials_data.get('type')
-    if (credentials_type == 'service_account' and
-            'client_id' in json_credentials_data and
-            'client_email' in json_credentials_data and
-            'private_key_id' in json_credentials_data and
-            'private_key' in json_credentials_data):
-        return oauth2client.service_account._ServiceAccountCredentials(
-            service_account_id=json_credentials_data['client_id'],
-            service_account_email=json_credentials_data['client_email'],
-            private_key_id=json_credentials_data['private_key_id'],
-            private_key_pkcs8_text=json_credentials_data['private_key'],
-            scopes=[])
-    else:
-        raise ValueError('credentials format is invalid')
+    return google.oauth2.service_account.Credentials.from_service_account_info(json_credentials_data)
 
 
 # for Google Cloud
@@ -96,14 +82,15 @@ def __google_cloud_storage_resource_path(bucket_name, name):
 def google_cloud_storage_public_download_url(bucket_name, name):
     resource = __google_cloud_storage_resource_path(bucket_name, name)
     return '{endpoint}{resource}'.format(
-        endpoint=gcloud.storage.blob._API_ACCESS_ENDPOINT,
+        endpoint=google.cloud.storage.blob._API_ACCESS_ENDPOINT,
         resource=resource)
 
 
 def google_cloud_storage_generate_download_url(credentials, bucket_name, name, duration):
     resource = __google_cloud_storage_resource_path(bucket_name, name)
-    return gcloud.credentials.generate_signed_url(credentials, resource, expire_time(duration),
-        gcloud.storage.blob._API_ACCESS_ENDPOINT, 'GET')
+    return google.cloud.storage._signing.generate_signed_url_v2(credentials, resource, expire_time(duration),
+    #return google.cloud.storage._signing.generate_signed_url_v4(credentials, resource, duration,
+        api_access_endpoint=google.cloud.storage.blob._API_ACCESS_ENDPOINT, method='GET')
 
 
 # for Amazon CloudFront

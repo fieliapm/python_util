@@ -26,7 +26,8 @@
 ################################################################################
 
 
-import gcloud.credentials
+import google.oauth2.service_account
+
 import boto.cloudfront.distribution
 import rsa # module boto need module rsa
 
@@ -47,7 +48,7 @@ class GoogleCloudStorageSignUrl(SignUrl):
         super(GoogleCloudStorageSignUrl, self).__init__(server_name)
 
         if json_credentials_path is not None:
-            self.credentials = gcloud.credentials.get_for_service_account_json(json_credentials_path)
+            self.credentials = google.oauth2.service_account.Credentials.from_service_account_file(json_credentials_path)
         elif json_credentials_string is not None:
             self.credentials = helper.create_service_account_credentials_from_json(json_credentials_string)
         else:

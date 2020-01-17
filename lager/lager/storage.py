@@ -26,7 +26,8 @@
 ################################################################################
 
 
-import gcloud.storage
+import google.cloud.storage
+
 import boto
 import boto.cloudfront
 import gcs_oauth2_boto_plugin
@@ -81,10 +82,10 @@ class GoogleCloudStorage(Storage):
         super(GoogleCloudStorage, self).__init__(server_name)
 
         if json_credentials_path is not None:
-            self.client = gcloud.storage.client.Client.from_service_account_json(json_credentials_path, project=project)
+            self.client = google.cloud.storage.client.Client.from_service_account_json(json_credentials_path, project=project)
         elif json_credentials_string is not None:
             self.credentials = helper.create_service_account_credentials_from_json(json_credentials_string)
-            self.client = gcloud.storage.client.Client(project, self.credentials)
+            self.client = google.cloud.storage.client.Client(project, self.credentials)
         else:
             raise ValueError('must assign json_credential_path or json_credential_string')
         self.bucket = self.client.get_bucket(bucket_name)
@@ -162,7 +163,7 @@ class GoogleCloudStorage(Storage):
         if blob is None:
             url = None
         else:
-            url = blob.generate_signed_url(helper.expire_time(duration), method)
+            url = blob.generate_signed_url(helper.expire_time(duration), method=method)
         return url
 
 
@@ -249,7 +250,7 @@ class GoogleCloudStorage_Boto(Storage):
         if key is None:
             url = None
         else:
-            url = key.generate_url(duration, method)
+            url = key.generate_url(duration, method=method)
         return url
 
 
@@ -331,7 +332,7 @@ class AmazonS3Storage(Storage):
         if key is None:
             url = None
         else:
-            url = key.generate_url(duration, method)
+            url = key.generate_url(duration, method=method)
         return url
 
 

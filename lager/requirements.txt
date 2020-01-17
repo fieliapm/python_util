@@ -1,5 +1,6 @@
-oauth2client==1.5.2
-gcloud==0.9.0
+google-cloud
+google-cloud-storage
+google-auth
 six
 boto>=2.38.0
 rsa
