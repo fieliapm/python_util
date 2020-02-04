@@ -88,6 +88,11 @@ def google_cloud_storage_public_download_url(bucket_name, name):
 
 def google_cloud_storage_generate_download_url(credentials, bucket_name, name, duration):
     resource = __google_cloud_storage_resource_path(bucket_name, name)
+
+    # generate_signed_url() need google-cloud<0.34.0 or google-cloud-storage<1.15.0
+    # generate_signed_url_v2() and generate_signed_url_v4() need google-cloud-storage>=1.15.0
+
+    #return google.cloud.storage._signing.generate_signed_url(credentials, resource, expire_time(duration),
     return google.cloud.storage._signing.generate_signed_url_v2(credentials, resource, expire_time(duration),
     #return google.cloud.storage._signing.generate_signed_url_v4(credentials, resource, duration,
         api_access_endpoint=google.cloud.storage.blob._API_ACCESS_ENDPOINT, method='GET')

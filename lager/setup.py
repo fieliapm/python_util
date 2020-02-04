@@ -36,4 +36,11 @@ setup(name='lager',
     author_email='fieliapm@gmail.com',
     url='https://github.com/fieliapm/python_util',
     packages=['lager'],
+    install_requires=[
+        # for generate_signed_url()
+        #'google-cloud<0.34.0',
+        #'google-cloud-storage<1.15.0',
+        # for generate_signed_url_v2() and generate_signed_url_v4()
+        'google-cloud-storage>=1.15.0',
+    ],
 )
