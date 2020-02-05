@@ -42,5 +42,11 @@ setup(name='lager',
         #'google-cloud-storage<1.15.0',
         # for generate_signed_url_v2() and generate_signed_url_v4()
         'google-cloud-storage>=1.15.0',
+        'six',
+        # boto develop can resolve "On Python installs built against OpenSSL 1.1.1, Boto fails with SNI errors"
+        #'boto>=2.40.0', # support python3
+        'boto @ git+https://github.com/boto/boto.git@91ba037e54ef521c379263b0ac769c66182527d7#egg=boto',
+        'rsa',
+        'gcs-oauth2-boto-plugin>=2.0', # support python3
     ],
 )
